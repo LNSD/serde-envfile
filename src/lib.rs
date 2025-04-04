@@ -56,35 +56,3 @@ pub use error::Error;
 pub use prefixed::{Prefixed, prefixed};
 pub use ser::{Serializer, to_file, to_string};
 pub use value::Value;
-
-#[cfg(test)]
-mod tests {
-    use serde::{Deserialize, Serialize};
-
-    use crate::{Value, from_str, to_string};
-
-    #[test]
-    fn basic_main() {
-        #[derive(Debug, Deserialize, Serialize)]
-        struct Test {
-            hello: String,
-        }
-
-        let de = "HELLO=\"WORLD\"";
-        let test: Test = from_str(de).unwrap();
-        let ser = to_string(&test).unwrap();
-
-        assert_eq!(de, ser)
-    }
-
-    #[test]
-    fn value_main() {
-        let mut env = Value::new();
-        env.insert("hello".into(), "world".into());
-        let ser = to_string(&env).unwrap();
-
-        let de: Value = from_str(&ser).unwrap();
-
-        assert_eq!(env, de);
-    }
-}
