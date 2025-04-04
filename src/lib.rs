@@ -51,25 +51,17 @@ pub(crate) mod prefixed;
 pub(crate) mod ser;
 pub(crate) mod value;
 
+pub use de::{from_env, from_file, from_str};
 pub use error::Error;
-
-pub use de::from_env;
-pub use de::from_file;
-pub use de::from_str;
-
-pub use ser::to_file;
-pub use ser::to_string;
-pub use ser::Serializer;
-
+pub use prefixed::{Prefixed, prefixed};
+pub use ser::{Serializer, to_file, to_string};
 pub use value::Value;
-
-pub use prefixed::prefixed;
-pub use prefixed::Prefixed;
 
 #[cfg(test)]
 mod tests {
-    use crate::{from_str, to_string, Value};
     use serde::{Deserialize, Serialize};
+
+    use crate::{Value, from_str, to_string};
 
     #[test]
     fn basic_main() {

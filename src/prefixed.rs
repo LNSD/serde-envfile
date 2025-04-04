@@ -1,9 +1,12 @@
 use std::path::Path;
 
-use crate::de::{from_env_inner, from_file_inner, from_str_inner};
-use crate::error::Result;
-use crate::ser::{to_file_inner, to_string_inner};
 use serde::{de, ser};
+
+use crate::{
+    de::{from_env_inner, from_file_inner, from_str_inner},
+    error::Result,
+    ser::{to_file_inner, to_string_inner},
+};
 
 /// Helper structure to work with prefixes more efficiently.
 /// Instantiable through [prefixed].
@@ -56,7 +59,6 @@ mod tests {
     use serde::Deserialize;
 
     use super::*;
-
     use crate::Value;
 
     #[test]

@@ -1,5 +1,7 @@
-use std;
-use std::fmt::{self, Display};
+use std::{
+    self,
+    fmt::{self, Display},
+};
 
 use serde::{de, ser};
 
