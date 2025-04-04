@@ -1,4 +1,4 @@
-use serde_envfile::{from_str, to_string, Value};
+use serde_envfile::{Value, from_str, to_string};
 
 #[test]
 fn derive_serde() {

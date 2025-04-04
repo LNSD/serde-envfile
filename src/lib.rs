@@ -51,8 +51,8 @@ pub(crate) mod prefixed;
 pub(crate) mod ser;
 pub(crate) mod value;
 
-pub use de::{from_env, from_file, from_str};
+pub use de::{from_env, from_file, from_reader, from_str};
 pub use error::Error;
 pub use prefixed::{Prefixed, prefixed};
-pub use ser::{Serializer, to_file, to_string};
+pub use ser::{Serializer, to_file, to_string, to_writer};
 pub use value::Value;

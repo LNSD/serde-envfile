@@ -1,10 +1,19 @@
 use std::{fs::write, path::Path};
 
-#[cfg(feature = "debug")]
-use log::debug;
-use serde::{Serialize, ser};
+use serde::ser::Serialize as _;
 
-use crate::error::{Error, Result};
+use super::error::{Error, Result};
+
+cfg_if::cfg_if! {
+    if #[cfg(feature = "debug")] {
+        use log::debug;
+    } else {
+        #[allow(unused_macros)]
+        macro_rules! debug {
+            ($fmt:expr $(, $arg:expr)*) => {};
+        }
+    }
+}
 
 #[cfg(not(feature = "debug"))]
 macro_rules! debug {
@@ -59,19 +68,58 @@ impl Serializer {
 /// ```
 pub fn to_string<T>(v: &T) -> Result<String>
 where
-    T: ser::Serialize,
+    T: serde::ser::Serialize,
 {
     to_string_inner(None, v)
 }
 
 pub fn to_string_inner<T>(prefix: Option<&str>, v: &T) -> Result<String>
 where
-    T: ser::Serialize,
+    T: serde::ser::Serialize,
 {
     let mut serializer = Serializer::new(prefix);
     v.serialize(&mut serializer)?;
 
     Ok(serializer.output)
+}
+
+/// Serialize data to a writer that implements `std::io::Write`.
+///
+/// # Example
+///
+/// ```
+/// use std::io::Cursor;
+/// use serde_envfile::{Error, Value, to_writer};
+///
+/// fn to_writer_example() -> Result<(), Error> {
+///     let mut value = Value::new();
+///     value.insert("KEY".into(), "VALUE".into());
+///     
+///     let mut writer = Cursor::new(Vec::new());
+///     to_writer(&mut writer, &value)?;
+///
+///     let output = String::from_utf8(writer.into_inner()).unwrap();
+///     println!("{}", output);
+///
+///     Ok(())
+/// }
+/// ```
+pub fn to_writer<W, T>(writer: W, v: &T) -> Result<()>
+where
+    W: std::io::Write,
+    T: serde::ser::Serialize,
+{
+    to_writer_inner(None, writer, v)
+}
+
+pub(crate) fn to_writer_inner<W, T>(prefix: Option<&str>, mut writer: W, v: &T) -> Result<()>
+where
+    W: std::io::Write,
+    T: serde::ser::Serialize,
+{
+    writer
+        .write_all(to_string_inner(prefix, v)?.as_bytes())
+        .map_err(Error::new)
 }
 
 /// Serialize data into an environment variable file.
@@ -91,21 +139,21 @@ where
 ///     Ok(())
 /// }
 /// ```
-pub fn to_file<T>(p: &Path, v: &T) -> Result<()>
+pub fn to_file<T>(path: &Path, v: &T) -> Result<()>
 where
-    T: ser::Serialize,
+    T: serde::ser::Serialize,
 {
-    to_file_inner(None, p, v)
+    to_file_inner(None, path, v)
 }
 
-pub fn to_file_inner<T>(prefix: Option<&str>, p: &Path, v: &T) -> Result<()>
+pub fn to_file_inner<T>(prefix: Option<&str>, path: &Path, v: &T) -> Result<()>
 where
-    T: ser::Serialize,
+    T: serde::ser::Serialize,
 {
-    write(p, to_string_inner(prefix, v)?).map_err(|e| Error::Message(e.to_string()))
+    write(path, to_string_inner(prefix, v)?).map_err(Error::new)
 }
 
-impl ser::Serializer for &mut Serializer {
+impl serde::ser::Serializer for &mut Serializer {
     type Ok = ();
     type Error = Error;
 
@@ -220,7 +268,7 @@ impl ser::Serializer for &mut Serializer {
 
     fn serialize_some<T>(self, value: &T) -> Result<()>
     where
-        T: ?Sized + ser::Serialize,
+        T: ?Sized + serde::ser::Serialize,
     {
         debug!("serialize some");
         value.serialize(self)
@@ -231,8 +279,8 @@ impl ser::Serializer for &mut Serializer {
         Ok(())
     }
 
-    fn serialize_unit_struct(self, name: &'static str) -> Result<()> {
-        debug!("serialize unit struct: {}", name);
+    fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
+        debug!("serialize unit struct: {}", _name);
         self.serialize_unit()
     }
 
@@ -246,11 +294,11 @@ impl ser::Serializer for &mut Serializer {
         self.serialize_str(variant)
     }
 
-    fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<()>
+    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
     where
-        T: ?Sized + ser::Serialize,
+        T: ?Sized + serde::ser::Serialize,
     {
-        debug!("serialize newtype struct: {}", name);
+        debug!("serialize newtype struct: {}", _name);
         value.serialize(self)
     }
 
@@ -262,7 +310,7 @@ impl ser::Serializer for &mut Serializer {
         value: &T,
     ) -> Result<()>
     where
-        T: ?Sized + ser::Serialize,
+        T: ?Sized + serde::ser::Serialize,
     {
         debug!("serialize newtype struct variant: {}", variant);
         if self.sequence {
@@ -320,30 +368,30 @@ impl ser::Serializer for &mut Serializer {
         Ok(self)
     }
 
-    fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
-        debug!("serialize struct: {}", name);
+    fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
+        debug!("serialize struct: {}", _name);
         self.serialize_map(Some(len))
     }
 
     fn serialize_struct_variant(
         self,
-        name: &'static str,
+        _name: &'static str,
         _variant_index: u32,
-        variant: &'static str,
+        _variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        debug!("serialize struct variant: {}/{}", name, variant);
+        debug!("serialize struct variant: {}/{}", _name, _variant);
         self.serialize_map(Some(len))
     }
 }
 
-impl ser::SerializeSeq for &mut Serializer {
+impl serde::ser::SerializeSeq for &mut Serializer {
     type Ok = ();
     type Error = Error;
 
     fn serialize_element<T>(&mut self, value: &T) -> Result<()>
     where
-        T: ?Sized + ser::Serialize,
+        T: ?Sized + serde::ser::Serialize,
     {
         debug!("serializing sequence element");
         let r = value.serialize(&mut **self);
@@ -360,13 +408,13 @@ impl ser::SerializeSeq for &mut Serializer {
     }
 }
 
-impl ser::SerializeTuple for &mut Serializer {
+impl serde::ser::SerializeTuple for &mut Serializer {
     type Ok = ();
     type Error = Error;
 
     fn serialize_element<T>(&mut self, value: &T) -> Result<()>
     where
-        T: ?Sized + ser::Serialize,
+        T: ?Sized + serde::ser::Serialize,
     {
         debug!("serialize tuple element");
         let r = value.serialize(&mut **self);
@@ -383,13 +431,13 @@ impl ser::SerializeTuple for &mut Serializer {
     }
 }
 
-impl ser::SerializeTupleStruct for &mut Serializer {
+impl serde::ser::SerializeTupleStruct for &mut Serializer {
     type Ok = ();
     type Error = Error;
 
     fn serialize_field<T>(&mut self, value: &T) -> Result<()>
     where
-        T: ?Sized + ser::Serialize,
+        T: ?Sized + serde::ser::Serialize,
     {
         debug!("serialize tuple struct field");
         let r = value.serialize(&mut **self);
@@ -405,13 +453,13 @@ impl ser::SerializeTupleStruct for &mut Serializer {
     }
 }
 
-impl ser::SerializeTupleVariant for &mut Serializer {
+impl serde::ser::SerializeTupleVariant for &mut Serializer {
     type Ok = ();
     type Error = Error;
 
     fn serialize_field<T>(&mut self, value: &T) -> Result<()>
     where
-        T: ?Sized + ser::Serialize,
+        T: ?Sized + serde::ser::Serialize,
     {
         debug!("serialize tuple variant field");
         let r = value.serialize(&mut **self);
@@ -427,13 +475,13 @@ impl ser::SerializeTupleVariant for &mut Serializer {
     }
 }
 
-impl ser::SerializeMap for &mut Serializer {
+impl serde::ser::SerializeMap for &mut Serializer {
     type Ok = ();
     type Error = Error;
 
     fn serialize_key<T>(&mut self, key: &T) -> Result<()>
     where
-        T: ?Sized + ser::Serialize,
+        T: ?Sized + serde::ser::Serialize,
     {
         debug!("serialize map key");
         serialize_map_struct_key(self, key)
@@ -441,7 +489,7 @@ impl ser::SerializeMap for &mut Serializer {
 
     fn serialize_value<T>(&mut self, value: &T) -> Result<()>
     where
-        T: ?Sized + ser::Serialize,
+        T: ?Sized + serde::ser::Serialize,
     {
         debug!("serialize map value");
         serialize_map_struct_value(self, value)
@@ -454,13 +502,13 @@ impl ser::SerializeMap for &mut Serializer {
     }
 }
 
-impl ser::SerializeStruct for &mut Serializer {
+impl serde::ser::SerializeStruct for &mut Serializer {
     type Ok = ();
     type Error = Error;
 
     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
-        T: ?Sized + ser::Serialize,
+        T: ?Sized + serde::ser::Serialize,
     {
         debug!("serializing struct field");
 
@@ -474,13 +522,13 @@ impl ser::SerializeStruct for &mut Serializer {
     }
 }
 
-impl ser::SerializeStructVariant for &mut Serializer {
+impl serde::ser::SerializeStructVariant for &mut Serializer {
     type Ok = ();
     type Error = Error;
 
     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
-        T: ?Sized + ser::Serialize,
+        T: ?Sized + serde::ser::Serialize,
     {
         debug!("serializing struct variant field");
 
@@ -496,7 +544,7 @@ impl ser::SerializeStructVariant for &mut Serializer {
 
 fn serialize_field<T>(ser: &'_ mut &'_ mut Serializer, key: &'static str, value: &T) -> Result<()>
 where
-    T: ?Sized + ser::Serialize,
+    T: ?Sized + serde::ser::Serialize,
 {
     serialize_map_struct_key(ser, key)?;
     serialize_map_struct_value::<T>(ser, value)?;
@@ -505,7 +553,7 @@ where
 
 fn serialize_map_struct_key<T>(ser: &'_ mut &'_ mut Serializer, key: &T) -> Result<()>
 where
-    T: ?Sized + ser::Serialize,
+    T: ?Sized + serde::ser::Serialize,
 {
     if ser.sequence {
         return Err(Error::UnsupportedStructureInSeq);
@@ -526,7 +574,7 @@ where
 
 fn serialize_map_struct_value<T>(ser: &'_ mut &'_ mut Serializer, value: &T) -> Result<()>
 where
-    T: ?Sized + ser::Serialize,
+    T: ?Sized + serde::ser::Serialize,
 {
     if ser.sequence {
         return Err(Error::UnsupportedStructureInSeq);
@@ -542,12 +590,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, fs::read_to_string};
+    use std::{collections::HashMap, fs::read_to_string, io::Cursor};
 
-    use serde::Deserialize;
     use tempfile::NamedTempFile;
 
-    use super::*;
+    use super::{to_file, to_string, to_writer};
     use crate::{Value, from_str};
 
     #[test]
@@ -566,18 +613,18 @@ mod tests {
         env.insert("HELLO".into(), "WORLD".into());
 
         let file = NamedTempFile::new().unwrap();
-        to_file(file.path(), &env).unwrap();
+        to_file(&file.path(), &env).unwrap();
         let s = read_to_string(file.path()).unwrap();
 
         assert_eq!("HELLO=\"WORLD\"", s);
     }
 
-    #[derive(Debug, Serialize)]
+    #[derive(Debug, serde::Serialize)]
     struct StructTestNested {
         c: u8,
     }
 
-    #[derive(Debug, Serialize)]
+    #[derive(Debug, serde::Serialize)]
     struct StructTest {
         a: u8,
         b: StructTestNested,
@@ -595,7 +642,7 @@ mod tests {
         assert_eq!("A=1\nB_C=2", s);
     }
 
-    #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+    #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
     struct SeqTest {
         a: Vec<String>,
         b: String,
@@ -614,14 +661,13 @@ mod tests {
         assert_eq!(from_str::<SeqTest>(expected).unwrap(), env);
     }
 
-    #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-    #[allow(clippy::upper_case_acronyms)]
+    #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
     enum EnumTestEnum {
         HELLO,
         WORLD,
     }
 
-    #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+    #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
     struct EnumTest {
         a: EnumTestEnum,
     }
@@ -638,7 +684,7 @@ mod tests {
         assert_eq!(from_str::<EnumTest>(&s).unwrap(), env);
     }
 
-    #[derive(Debug, Serialize, Deserialize, PartialEq)]
+    #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq)]
     struct NumberTest {
         u8: u8,
         u16: u16,
@@ -675,7 +721,7 @@ mod tests {
         assert_eq!(from_str::<NumberTest>(&s).unwrap(), env);
     }
 
-    #[derive(Debug, Serialize, Deserialize, PartialEq)]
+    #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq)]
     struct BoolTest {
         a: bool,
         b: bool,
@@ -691,7 +737,7 @@ mod tests {
         assert_eq!(from_str::<BoolTest>(&s).unwrap(), env);
     }
 
-    #[derive(Debug, Serialize, Deserialize, PartialEq)]
+    #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq)]
     struct OptionTest {
         a: Option<String>,
         b: Option<String>,
@@ -712,7 +758,7 @@ mod tests {
         // envy deserializes "" with Some()
     }
 
-    #[derive(Debug, Serialize, Deserialize, PartialEq)]
+    #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq)]
     struct MapTest {
         #[serde(flatten)]
         inner: HashMap<String, String>,
@@ -731,7 +777,7 @@ mod tests {
         assert_eq!(from_str::<MapTest>(&s).unwrap(), env);
     }
 
-    #[derive(Debug, Serialize, Deserialize, PartialEq)]
+    #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq)]
     struct NestedMapTest {
         inner: HashMap<String, String>,
     }
@@ -746,5 +792,21 @@ mod tests {
         let s = to_string(&env).unwrap();
         let expected = "INNER_HELLO=\"WORLD\"";
         assert_eq!(expected, &s);
+    }
+
+    #[test]
+    fn serialize_to_writer() {
+        //* Given
+        let env = Value::from_iter([("HELLO", "WORLD")]);
+
+        let mut writer = Cursor::new(Vec::new());
+
+        //* When
+        to_writer(&mut writer, &env).expect("Failed to serialize to writer");
+
+        //* Then
+        let expected_output = "HELLO=\"WORLD\"";
+        let output = String::from_utf8(writer.into_inner()).expect("Invalid UTF-8 sequence");
+        assert_eq!(expected_output, output);
     }
 }
