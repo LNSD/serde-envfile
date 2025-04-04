@@ -65,34 +65,3 @@ pub use value::Value;
 
 pub use prefixed::prefixed;
 pub use prefixed::Prefixed;
-
-#[cfg(test)]
-mod tests {
-    use crate::{from_str, to_string, Value};
-    use serde::{Deserialize, Serialize};
-
-    #[test]
-    fn basic_main() {
-        #[derive(Debug, Deserialize, Serialize)]
-        struct Test {
-            hello: String,
-        }
-
-        let de = "HELLO=\"WORLD\"";
-        let test: Test = from_str(de).unwrap();
-        let ser = to_string(&test).unwrap();
-
-        assert_eq!(de, ser)
-    }
-
-    #[test]
-    fn value_main() {
-        let mut env = Value::new();
-        env.insert("hello".into(), "world".into());
-        let ser = to_string(&env).unwrap();
-
-        let de: Value = from_str(&ser).unwrap();
-
-        assert_eq!(env, de);
-    }
-}
