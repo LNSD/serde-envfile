@@ -58,7 +58,7 @@ impl Serializer {
 ///
 /// fn to_string_example() -> Result<(), Error> {
 ///     let mut value = Value::new();
-///     value.insert("KEY".into(), "VALUE".into());
+///     value.insert("KEY", "VALUE");
 ///     
 ///     let value: String = to_string(&value)?;
 ///     println!("{}", value);
@@ -93,7 +93,7 @@ where
 ///
 /// fn to_writer_example() -> Result<(), Error> {
 ///     let mut value = Value::new();
-///     value.insert("KEY".into(), "VALUE".into());
+///     value.insert("KEY", "VALUE");
 ///     
 ///     let mut writer = Cursor::new(Vec::new());
 ///     to_writer(&mut writer, &value)?;
@@ -132,7 +132,7 @@ where
 ///
 /// fn to_string_example() -> Result<(), Error> {
 ///     let mut value = Value::new();
-///     value.insert("KEY".into(), "VALUE".into());
+///     value.insert("KEY", "VALUE");
 ///     
 ///     to_file(&PathBuf::from(".env"), &value)?;
 ///
@@ -600,7 +600,7 @@ mod tests {
     #[test]
     fn to_string_test() {
         let mut env = Value::new();
-        env.insert("HELLO".into(), "WORLD".into());
+        env.insert("HELLO", "WORLD");
 
         let s = to_string(&env).unwrap();
 
@@ -610,7 +610,7 @@ mod tests {
     #[test]
     fn to_file_test() {
         let mut env = Value::new();
-        env.insert("HELLO".into(), "WORLD".into());
+        env.insert("HELLO", "WORLD");
 
         let file = NamedTempFile::new().unwrap();
         to_file(&file.path(), &env).unwrap();

@@ -69,7 +69,7 @@ pub fn prefixed(prefix: &str) -> Prefixed {
 }
 
 /// Helper structure to work with prefixed environment variables more efficiently.
-/// 
+///
 /// This struct provides methods for serializing and deserializing data with a consistent prefix.
 /// Use the [`prefixed`] function to create an instance of this struct.
 pub struct Prefixed<'a>(&'a str);
@@ -126,7 +126,6 @@ impl<'a> Prefixed<'a> {
         to_writer_inner(Some(self.0), writer, v)
     }
 }
-
 
 #[cfg(test)]
 mod tests {
