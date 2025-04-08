@@ -24,7 +24,7 @@ fn derive_serde() {
 fn value_serde() {
     //* Given
     let mut env = Value::new();
-    env.insert("hello".into(), "world".into());
+    env.insert("hello", "world");
 
     //* When
     // Serialize and deserialize

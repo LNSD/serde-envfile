@@ -35,7 +35,7 @@
 //!
 //! fn main() -> Result<(), Error> {
 //!    let mut env = Value::new();
-//!    env.insert("hello".into(), "world".into());
+//!    env.insert("hello", "world");
 //!    let env = to_string(&env)?;
 //!
 //!    println!("{}", env);
@@ -49,7 +49,7 @@ pub mod de;
 pub(crate) mod error;
 pub(crate) mod prefixed;
 pub(crate) mod ser;
-pub(crate) mod value;
+pub mod value;
 
 pub use de::{from_env, from_file, from_reader, from_str};
 pub use error::Error;
